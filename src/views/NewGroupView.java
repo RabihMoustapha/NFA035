@@ -1,29 +1,30 @@
 package views;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.GridLayout;
 import java.io.*;
 import java.util.*;
-import java.util.List;
-import Models.Contact;
+
 import Models.Group;
 
 public class NewGroupView extends JFrame {
-    private Group g;
+
     private GroupsView parent;
-    private List<Group> groups = new ArrayList<>();
+    private java.util.List<Group> groups;
     private JTextField groupNameField = new JTextField(15);
     private JTextArea descriptionArea = new JTextArea(3, 20);
     private JButton saveButton = new JButton("Save Group");
     private JButton cancelButton = new JButton("Cancel");
 
-    public NewGroupView(Group g, GroupsView parent) {
-        this.g = g;
+    public NewGroupView(Group dummy, GroupsView parent) {
         this.parent = parent;
+        this.groups = new ArrayList<>();
+        loadGroupsData();
+
         setTitle("New Group");
-        setSize(400, 400);
+        setSize(400, 300);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
         JPanel panel = new JPanel(new GridLayout(0, 1));
         panel.add(new JLabel("Group Name:"));
@@ -32,67 +33,68 @@ public class NewGroupView extends JFrame {
         panel.add(new JScrollPane(descriptionArea));
         panel.add(saveButton);
         panel.add(cancelButton);
-
         add(panel);
 
-        loadGroupsData();
-
-        saveButton.addActionListener(e -> addGroup(g));
-        
-        cancelButton.addActionListener(e -> this.dispose());
+        saveButton.addActionListener(e -> addGroup());
+        cancelButton.addActionListener(e -> dispose());
 
         setVisible(true);
     }
 
-    private void addGroup(Group g) {
-        g.setNom(groupNameField.getText());
-        g.setDescription(descriptionArea.getText());
+    private void addGroup() {
+        String name = groupNameField.getText().trim();
+        String desc = descriptionArea.getText().trim();
 
-        if (groups.contains(g)) {
-            JOptionPane.showMessageDialog(null, "The Group is already created");
+        if (name.isEmpty() || desc.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "All fields must be filled.",
+                    "Validation Error", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        groups.add(g);
+        Group newGroup = new Group(name, desc);
 
-        // Save all groups, overwriting the file
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("Groups.dat"))) {
-            for (Group group : groups) {
-                oos.writeObject(group);
+        for (Group g : groups) {
+            if (g.hasSameData(newGroup)) {
+                JOptionPane.showMessageDialog(this, "The group is already created.");
+                return;
             }
-            JOptionPane.showMessageDialog(null, "Group saved successfully!");
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Error saving group: " + ioe.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
         }
-        
+
+        groups.add(newGroup);
+        saveAllGroups();
+
+        JOptionPane.showMessageDialog(this, "Group saved successfully!");
         parent.loadGroups();
+        dispose();
     }
 
     private void loadGroupsData() {
-        List<Group> newGroups = new ArrayList<>();
+        groups.clear();
         File file = new File("Groups.dat");
         if (!file.exists()) return;
-
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
             while (true) {
                 try {
-                    Group g = (Group) ois.readObject();
-                    newGroups.add(g);
+                    groups.add((Group) ois.readObject());
                 } catch (EOFException eof) {
                     break;
                 }
             }
-        } catch (IOException | ClassNotFoundException ioe) {
-            ioe.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Error loading groups: " + ioe.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
+        } catch (IOException | ClassNotFoundException e) {
+            JOptionPane.showMessageDialog(this, "Error loading groups: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
         }
-        groups = newGroups;
+    }
+
+    private void saveAllGroups() {
+        File file = new File("Groups.dat");
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
+            for (Group g : groups) {
+                oos.writeObject(g);
+            }
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error saving group: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

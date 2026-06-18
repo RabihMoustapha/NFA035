@@ -1,110 +1,109 @@
 package views;
 
-import Models.Contact;
-import java.awt.*;
+import javax.swing.*;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
 import java.io.*;
 import java.util.*;
-import java.util.List;
-import javax.swing.*;
+
+import Models.Contact;
 
 public class NewContactView extends JFrame {
-	private ContactsView parent;
-	private Contact c;
-	private List<Contact> contacts;
-	private JTextField firstNameField = new JTextField(15);
-	private JTextField lastNameField = new JTextField(15);
-	private JTextField cityField = new JTextField(15);
-	private JButton saveButton = new JButton("Save");
-	private JButton cancelButton = new JButton("Cancel");
-	
-	public NewContactView(Contact c, ContactsView parent) {
-		this.parent = parent;
-		this.c = c;
-		contacts = new ArrayList<>();
-		loadContacts(); // Load existing contacts from file
-		setTitle("New Contact");
-		setSize(400, 500);
-		setLocationRelativeTo(null);
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setVisible(true);
 
-		JPanel form = new JPanel(new GridLayout(0, 1, 5, 5));
-		form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    private ContactsView parent;
+    private java.util.List<Contact> contacts;
+    private JTextField firstNameField = new JTextField(15);
+    private JTextField lastNameField = new JTextField(15);
+    private JTextField cityField = new JTextField(15);
+    private JButton saveButton = new JButton("Save");
+    private JButton cancelButton = new JButton("Cancel");
 
-		// Form fields
-		form.add(new JLabel("First Name:"));
-		form.add(firstNameField);
-		form.add(new JLabel("Last Name:"));
-		form.add(lastNameField);
-		form.add(new JLabel("City:"));
-		form.add(cityField);
-		
-		// Button panel
-		JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-		buttonPanel.add(saveButton);
-		buttonPanel.add(cancelButton);
-		form.add(buttonPanel);
+    public NewContactView(Contact c, ContactsView parent) {
+        this.parent = parent;
+        this.contacts = new ArrayList<>();
+        loadContacts();
 
-		saveButton.addActionListener(e -> saveContact(c));
-		
-		cancelButton.addActionListener(e -> this.dispose());
-		
-		add(form);
-	}
+        setTitle("New Contact");
+        setSize(400, 250);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-	private void saveContact(Contact c) {
-		c.setNom(firstNameField.getText());
-		c.setPrenom(lastNameField.getText());
-		c.setVille(cityField.getText());
+        JPanel form = new JPanel(new GridLayout(0, 1, 5, 5));
+        form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        form.add(new JLabel("First Name:"));
+        form.add(firstNameField);
+        form.add(new JLabel("Last Name:"));
+        form.add(lastNameField);
+        form.add(new JLabel("City:"));
+        form.add(cityField);
 
-		if (contacts.contains(c)) {
-			JOptionPane.showMessageDialog(null, "The contact is already entered");
-			return;
-		} else {
-			contacts.add(c);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+        form.add(buttonPanel);
+        add(form);
 
-			try (FileOutputStream fos = new FileOutputStream("Contacts.dat", false);
-				 ObjectOutputStream oos = new ObjectOutputStream(fos)) {
+        saveButton.addActionListener(e -> saveContact());
+        cancelButton.addActionListener(e -> dispose());
 
-				for (Contact contact : contacts) {
-					oos.writeObject(contact); // save each contact
-				}
+        setVisible(true);
+    }
 
-				JOptionPane.showMessageDialog(null, "Contact saved successfully!");
-			} catch (IOException ioe) {
-				JOptionPane.showMessageDialog(this, "Error saving contact: " + ioe.getMessage(), "Error",
-						JOptionPane.ERROR_MESSAGE);
-			}
-		}
-        
-		parent.loadContacts();
-	}
+    private void saveContact() {
+        String prenom = firstNameField.getText().trim();
+        String nom = lastNameField.getText().trim();
+        String ville = cityField.getText().trim();
 
+        if (prenom.isEmpty() || nom.isEmpty() || ville.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "All fields must be filled.",
+                    "Validation Error", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
-	private void loadContacts() {
-	    List<Contact> newContacts = new ArrayList<>();
-	    File file = new File("Contacts.dat");
+        Contact newContact = new Contact(nom, prenom, ville);
 
-	    if (!file.exists() || file.length() == 0) {
-	        contacts = newContacts; // Empty list if file doesn't exist or is empty
-	        return;
-	    }
+        for (Contact existing : contacts) {
+            if (existing.hasSameData(newContact)) {
+                JOptionPane.showMessageDialog(this, "The contact is already entered.");
+                return;
+            }
+        }
 
-	    try (FileInputStream fis = new FileInputStream(file);
-	         ObjectInputStream ois = new ObjectInputStream(fis)) {
+        contacts.add(newContact);
+        writeAllContacts();
+        JOptionPane.showMessageDialog(this, "Contact saved successfully!");
+        parent.loadContacts();
+        dispose();
+    }
 
-	        while (true) {
-	            try {
-	                Contact c = (Contact) ois.readObject();
-	                newContacts.add(c);
-	            } catch (EOFException eof) {
-	                break; // End of file
-	            }
-	        }
-	    } catch (IOException | ClassNotFoundException e) {
-	        e.printStackTrace();
-	    }
+    private void loadContacts() {
+        contacts.clear();
+        File file = new File("Contacts.dat");
+        if (!file.exists() || file.length() == 0) return;
 
-	    contacts = newContacts;
-	}
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+            while (true) {
+                try {
+                    contacts.add((Contact) ois.readObject());
+                } catch (EOFException eof) {
+                    break;
+                }
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            JOptionPane.showMessageDialog(this, "Error reading contacts: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void writeAllContacts() {
+        File file = new File("Contacts.dat");
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
+            for (Contact c : contacts) {
+                oos.writeObject(c);
+            }
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error saving contacts: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 }

@@ -1,14 +1,15 @@
 package views;
 
-import Models.Contact;
-import java.awt.*;
-import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
 import javax.swing.*;
+import java.awt.GridLayout;
+import java.io.*;
+import java.util.*;
+
+import Models.Contact;
 
 public class ContactUpdateView extends JFrame {
-	private ContactsView parent;
+
+    private ContactsView parent;
     private JTextField firstNameField;
     private JTextField lastNameField;
     private JTextField cityField;
@@ -21,7 +22,7 @@ public class ContactUpdateView extends JFrame {
         setTitle("Update Contact");
         setSize(350, 250);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
         firstNameField = new JTextField(contact.getPrenom(), 20);
         lastNameField = new JTextField(contact.getNom(), 20);
@@ -44,9 +45,8 @@ public class ContactUpdateView extends JFrame {
         add(formPanel);
 
         saveButton.addActionListener(e -> updateContact());
+        cancelButton.addActionListener(e -> dispose());
 
-        cancelButton.addActionListener(e -> this.dispose());
-        
         setVisible(true);
     }
 
@@ -56,46 +56,57 @@ public class ContactUpdateView extends JFrame {
         String ville = cityField.getText().trim();
 
         if (prenom.isEmpty() || nom.isEmpty() || ville.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "All fields must be filled", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "All fields must be filled",
+                    "Validation Error", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        List<Contact> contacts = new ArrayList<>();
-        File file = new File("Contacts.dat");
+        java.util.List<Contact> contacts = loadContactsFromFile();
+        if (contacts == null) return;
 
+        for (Contact c : contacts) {
+            if (c.equals(originalContact)) {
+                c.setPrenom(prenom);
+                c.setNom(nom);
+                c.setVille(ville);
+                break;
+            }
+        }
+
+        writeContactsToFile(contacts);
+        JOptionPane.showMessageDialog(this, "Contact updated successfully.");
+        parent.loadContacts();
+        dispose();
+    }
+
+    private java.util.List<Contact> loadContactsFromFile() {
+        java.util.List<Contact> contacts = new ArrayList<>();
+        File file = new File("Contacts.dat");
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
             while (true) {
                 try {
-                    Contact c = (Contact) ois.readObject();
-                    contacts.add(c);
+                    contacts.add((Contact) ois.readObject());
                 } catch (EOFException eof) {
                     break;
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
-            JOptionPane.showMessageDialog(this, "Error reading contacts: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            return;
+            JOptionPane.showMessageDialog(this, "Error reading contacts: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            return null;
         }
+        return contacts;
+    }
 
-        // Replace the original contact with updated one
-        for (int i = 0; i < contacts.size(); i++) {
-            Contact c = contacts.get(i);
-            if (c.equals(originalContact)) {
-                contacts.set(i, new Contact(prenom, nom, ville));
-                break;
-            }
-        }
-
+    private void writeContactsToFile(java.util.List<Contact> contacts) {
+        File file = new File("Contacts.dat");
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
             for (Contact c : contacts) {
                 oos.writeObject(c);
             }
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Error saving contact: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            return;
+            JOptionPane.showMessageDialog(this, "Error saving contacts: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
         }
-
-        JOptionPane.showMessageDialog(this, "Contact updated successfully.");
-        parent.loadContacts();
     }
 }

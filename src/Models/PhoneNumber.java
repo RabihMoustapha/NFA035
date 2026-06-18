@@ -1,34 +1,41 @@
 package Models;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 public class PhoneNumber implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private int regionCode, number;
+    private String regionCode;
+    private String number;
 
-    public PhoneNumber(int regionCode, int number) {
-        this.number = number;
+    public PhoneNumber(String regionCode, String number) {
         this.regionCode = regionCode;
-    }
-
-    public int getRegionCode() {
-        return this.regionCode;
-    }
-
-    public int getNumber() {
-        return this.number;
-    }
-
-    public void setRegionCode(int regionCode) {
-        this.regionCode = regionCode;
-    }
-
-    public void setNumber(int number) {
         this.number = number;
     }
 
+    public String getRegionCode() { return regionCode; }
+    public String getNumber() { return number; }
+
+    public void setRegionCode(String regionCode) { this.regionCode = regionCode; }
+    public void setNumber(String number) { this.number = number; }
+
+    @Override
     public String toString() {
-        return this.regionCode + " " + this.number;
+        return regionCode + " " + number;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof PhoneNumber)) return false;
+        PhoneNumber that = (PhoneNumber) o;
+        return Objects.equals(regionCode, that.regionCode) &&
+               Objects.equals(number, that.number);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(regionCode, number);
     }
 }
